@@ -1,0 +1,101 @@
+{#- Datasets, at admin: the data role's (meridian/roles/data/datasets.html),
+    its notices and sections in its order and words, as tabs so the page fits
+    one screen, one shown at a time (`?view=`): "Served" (and the role's
+    "Subjects" under it), "Wants", then Benzinga's: "Tickers" (each ticker
+    read, with the deployment's instrument or why none, searched and paged),
+    "Not recorded" (calendar rows the contract cannot carry yet, by why, and
+    what waits for it) and "Terms". The role's content is drawn here rather
+    than at its blocks for the tabs alone; nothing is renamed or reordered.
+    No dividend, key, ISIN or CUSIP. -#}
+{% extends "meridian/roles/data/datasets.html" %}
+{% import "meridian/kit.html" as kit %}
+{% import "meridian/roles/_rows.html" as om %}
+{% block status %}{{ kit.status({"state": state[0], "label": state[1], "detail": state[2], "at": checked_at, "at_label": "Last checked"}) }}{% endblock %}
+{% block content %}
+{% if not data.wants and view in ("served", "wants") %}
+{% if caller.deployment_admin %}
+{{ om.next_step("No wants yet", "Nothing reads this dataset until a deployment admin licenses it and entitles a plugin on", "data-sources", "Data sources") }}
+{% else %}
+{{ om.next_step("No wants yet", "Nothing reads this dataset until a deployment admin licenses it and entitles a plugin on Data sources. Ask a deployment admin to license it.") }}
+{% endif %}
+{% endif %}
+{% if data.unread %}<div class="notice warn" role="status" data-unread>A watchlist entry is no ticker, so nothing is read for it: {{ data.unread|join(", ") }}</div>{% endif %}
+<nav class="tabs" aria-label="Datasets" id="views">
+{% for key, label, count in [("served", "Served", data.served|length), ("wants", "Wants", wants), ("tickers", "Tickers", data.tickers|length), ("not-recorded", "Not recorded", data.not_recorded|sum(attribute="rows")), ("terms", "Terms", none)] %}
+<a class="tab{% if view == key %} on{% endif %}" href="?view={{ key }}"{% if view == key %} aria-current="page"{% endif %}>{{ label }}{% if count is not none %} <span class="count">{{ count }}</span>{% endif %}</a>
+{% endfor %}
+</nav>
+{% if view == "served" %}
+<section class="panel">
+<h2>Served</h2>
+<table class="one-line">
+<thead><tr><th>Dataset</th><th class="wide-only">Data</th><th class="wide-only">Arrives</th><th class="wide-only">Day</th><th>Licence</th><th class="wide-only">Entitled at the vendor</th><th class="num">Recorded</th><th class="num wide-only">Declined</th><th class="wide-only">Last recorded</th><th class="more"><span class="visually-hidden">Details</span></th></tr></thead><tbody>
+{% for row in data.served %}
+<tr><td><code>{{ row.dataset }}</code></td><td class="wide-only">{{ row.data }}</td><td class="wide-only">{{ row.arrives }}</td><td class="wide-only">{{ row.day }}</td><td>{{ "Licensed" if row.licensed else "Not licensed yet" }}</td><td class="wide-only">{{ row.entitled_at_vendor }}</td><td class="num">{{ row.recorded }}</td><td class="num wide-only">{{ row.declined }}</td><td class="wide-only">{{ row.last_recorded or "None yet" }}</td>
+<td class="more"><details class="row-detail" name="served"><summary aria-label="Details of {{ row.dataset }}">…</summary><div class="row-detail-pop"><h3>{{ row.dataset }}</h3><dl><dt>Data</dt><dd>{{ row.data }}</dd><dt>Arrives</dt><dd>{{ row.arrives }}</dd><dt>Day</dt><dd>{{ row.day }}</dd><dt>Terms and pricing</dt><dd>{{ row.default_terms or "Not described" }}</dd><dt>Licence</dt><dd>{{ "Licensed" if row.licensed else "Not licensed yet" }}</dd><dt>Entitled at the vendor</dt><dd>{{ row.entitled_at_vendor }}</dd><dt>Recorded</dt><dd>{{ row.recorded }}</dd><dt>Declined</dt><dd>{{ row.declined }}</dd><dt>Last recorded</dt><dd>{{ row.last_recorded or "None yet" }}</dd></dl></div></details></td></tr>
+{% endfor %}
+</tbody></table>
+</section>
+<section class="panel">
+<h2>Subjects</h2>
+<p>The deployment {{ "lets" if data.reads_instruments else "does not let" }} this plugin read an instrument's record.</p>
+</section>
+{% elif view == "wants" %}
+<section class="panel">
+<h2>Wants</h2>
+{% if wants > data.wants|length %}<p class="muted">The latest {{ data.wants|length }} of {{ wants }} wants are shown.</p>{% endif %}
+{% if data.wants %}
+<om-pager search="Search wants"><table class="one-line"><thead><tr><th>Dataset</th><th>Asked</th><th class="num">Subjects</th><th class="num wide-only">Recorded</th><th class="num wide-only">Declined</th><th>State</th></tr></thead><tbody>
+{% for want in data.wants %}
+<tr><td><code>{{ want.dataset }}</code></td><td>{{ want.asked }}</td><td class="num">{{ want.subjects }}</td><td class="num wide-only">{{ want.recorded }}</td><td class="num wide-only">{{ want.declined }}</td><td>{{ want.state }}</td></tr>
+{% endfor %}
+</tbody></table></om-pager>
+{% else %}
+<div class="empty-state"><strong>No wants yet</strong></div>
+{% endif %}
+</section>
+{% elif view == "tickers" %}
+<section class="panel">
+<h2>Tickers</h2>
+<form class="filters" method="get" role="search">
+<input type="hidden" name="view" value="tickers">
+<input type="search" name="q" value="{{ query }}" placeholder="Search tickers" aria-label="Search tickers by ticker, name or exchange">
+<button>Search</button>{% if query %} <a href="?view=tickers">Clear</a>{% endif %}
+<span class="muted">{{ shown|length }} of {{ data.tickers|length }}</span></form>
+{% if shown %}
+<om-pager>
+<table class="one-line">
+<thead><tr><th>Ticker</th><th>Name</th><th class="wide-only">Kept current</th><th>Instrument</th><th class="more"><span class="visually-hidden">Details</span></th></tr></thead>
+<tbody>
+{% for t in shown %}
+<tr data-ticker="{{ t.ticker }}"><td><code>{{ t.ticker }}</code></td><td>{{ t.name or "Not read yet" }}</td><td class="wide-only">{{ "Yes" if t.kept_current else "When wanted" }}</td><td>{% if t.instrument_id %}<code>{{ t.instrument_id }}</code>{% elif t.miss %}<span class="badge warn">{{ t.miss|replace("_", " ") }}</span>{% else %}<span class="muted">Not resolved yet</span>{% endif %}</td><td class="more"><details class="row-detail" name="tickers"><summary aria-label="Details of {{ t.ticker }}">…</summary><div class="row-detail-pop"><h3>{{ t.name or t.ticker }}</h3><dl><dt>Ticker</dt><dd>{{ t.ticker }}</dd><dt>Exchange</dt><dd>{{ t.exchange or "Not stated" }}</dd><dt>Watchlist entry</dt><dd>{{ t.entry or "None: wanted by a reader" }}</dd><dt>Instrument</dt><dd>{% if t.instrument_id %}<code>{{ t.instrument_id }}</code>{% elif t.miss %}None: {{ t.miss|replace("_", " ") }}; its dividends are not recorded until it resolves{% else %}Not resolved yet{% endif %}</dd><dt>Latest ex-date</dt><dd>{{ (t.latest_ex|day) if t.latest_ex else "None read yet" }}</dd><dt>Dividends sent since start</dt><dd>{{ t.sent }}</dd></dl></div></details></td></tr>
+{% endfor %}
+</tbody>
+</table>
+</om-pager>
+{% elif query %}
+<div class="empty-state"><strong>No ticker matches "{{ query }}"</strong><p>Search by ticker, name or exchange.</p></div>
+{% else %}
+<div class="empty-state"><strong>No ticker read yet</strong><p>Tickers appear here once the watchlist is read or a reader wants one.</p></div>
+{% endif %}
+</section>
+{% elif view == "not-recorded" %}
+<section class="panel">
+<h2>Not recorded</h2>
+{% if data.not_recorded %}
+<table class="one-line"><thead><tr><th>Why</th><th class="num">Calendar rows</th></tr></thead><tbody>
+{% for s in data.not_recorded %}<tr><td>{{ s.reason }}</td><td class="num">{{ s.rows }}</td></tr>
+{% endfor %}</tbody></table>
+{% else %}
+<div class="empty-state"><strong>Every row read was recorded</strong></div>
+{% endif %}
+<h3>Not in this version</h3>
+<ul>{% for item in data.not_yet %}<li>{{ item }}</li>{% endfor %}</ul>
+</section>
+{% else %}
+<section class="panel">
+<h2>Terms</h2>
+<p>{{ data.terms }}</p>
+</section>
+{% endif %}
+{% endblock %}
