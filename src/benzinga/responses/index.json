@@ -1,0 +1,8 @@
+{
+ "says": "Fictitious companies' dividends in Benzinga's v2.2 calendar layout (https://docs.benzinga.com/api-reference/calendar-api/get-dividends): synthetic, written for the tests and sample data, never read from Benzinga. Their ISINs and CUSIPs are made up, in the 999 range no issuer holds.",
+ "tickers": {
+  "NWND": "dividends-nwnd.json",
+  "CTSO": "dividends-ctso.json",
+  "FBRK": "dividends-fbrk.json"
+ }
+}

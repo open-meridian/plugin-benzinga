@@ -1,0 +1,15 @@
+{#- Connection, at admin: the data role's (meridian/roles/data/connection.html),
+    with Benzinga's nuance at its blocks only -- the head's status; a notice
+    naming benzinga_api_key while it is missing or malformed; where it reads
+    as a row of "Key"; and the pace as a row of "Limits and use". Benzinga
+    is polled, so the role draws no "Sessions". Whether the key is set is
+    said; its value never is. No dividend. -#}
+{% extends "meridian/roles/data/connection.html" %}
+{% import "meridian/kit.html" as kit %}
+{% block status %}{{ kit.status({"state": data.state, "label": data.said, "detail": detail, "at": data.checked_at, "at_label": "Last checked"}) }}{% endblock %}
+{% block vendor_notices %}{% if data.waiting %}<div class="notice warn" role="status" data-waiting>Waiting: {{ data.waiting }}. Enter your firm's own Benzinga API key in Settings. Nothing is asked of Benzinga until it is set.</div>{% endif %}{% endblock %}
+{% block vendor_rows %}{% if section == "Key" and data.mode != "No key" %}
+<tr data-source><th scope="row">Source</th><td>{{ data.source }}</td><td class="more"><details class="row-detail" name="facts"><summary aria-label="Details of Source">…</summary><div class="row-detail-pop"><h3>Source</h3><p class="hint">Kept current: {{ (data.kept_current ~ " tickers") if data.kept_current else "none; each security's dividends are fetched when wanted" }}. Next expected: not known, since dividends arrive when they are announced. Answers kept: {{ data.responses_kept }}{% if data.kept_for %}, {{ data.kept_for }}{% endif %}, without the key, ISIN or CUSIP.</p></div></details></td></tr>
+{% elif section == "Limits and use" %}
+<tr data-pace><th scope="row">Pace</th><td>{{ data.per_second }} requests a second at most{% if data.rate_limited %}; Benzinga refused {{ data.rate_limited }}, each followed by a pause{% endif %}</td><td></td></tr>
+{% endif %}{% endblock %}
